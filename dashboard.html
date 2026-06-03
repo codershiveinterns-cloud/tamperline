@@ -1646,9 +1646,25 @@
         }
 
         function choosePlan(plan) {
-            const name = plan.charAt(0).toUpperCase() + plan.slice(1);
+            const amount = _upgAnnual ? _upgPrices[plan].year : _upgPrices[plan].month;
+            const billing = _upgAnnual ? 'annual' : 'monthly';
+            const orderId = `plan-${plan}-${billing}-${Date.now()}`;
+
             closeUpgradeModal();
-            alert('✅ You selected the ' + name + ' Plan!\n\nPayment integration coming soon. Your selection has been noted.');
+
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = '/create-payment';
+            form.style.display = 'none';
+            form.innerHTML = `
+                <input type="hidden" name="order_id" value="${orderId}" />
+                <input type="hidden" name="amount" value="${Number(amount).toFixed(2)}" />
+                <input type="hidden" name="currency" value="USD" />
+                <input type="hidden" name="plan" value="${plan}" />
+                <input type="hidden" name="billing" value="${billing}" />
+            `;
+            document.body.appendChild(form);
+            form.submit();
         }
     </script>
 
