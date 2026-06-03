@@ -1,13 +1,21 @@
+const path = require('path');
 const express = require('express');
 const crypto = require('crypto');
 require('dotenv').config();
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin SDK
-const serviceAccount = require('./firebase-key.json');
+let serviceAccount;
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+} else {
+  serviceAccount = require('./firebase-key.json');
+}
+
+const firebaseDatabaseUrl = process.env.FIREBASE_DATABASE_URL || `https://${serviceAccount.project_id}.firebaseio.com`;
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+  databaseURL: firebaseDatabaseUrl
 });
 
 const db = admin.database();
@@ -15,7 +23,11 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+const staticRoot = path.join(__dirname, '..');
+app.use(express.static(staticRoot));
+
 const PORT = process.env.PORT || 3000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const PAYPRO_URL = process.env.PAYPRO_URL || 'https://secure.payproglobal.com/process/';
 const MERCHANT_ID = process.env.MERCHANT_ID || 'YOUR_MERCHANT_ID';
 const SECRET = process.env.PAYPRO_SECRET || 'YOUR_SECRET';
@@ -114,9 +126,9 @@ app.post('/create-payment', (req, res) => {
   const signatureBase = `${merchant_id}|${order_id}|${amount}|${currency}`;
   const signature = crypto.createHmac('sha256', SECRET).update(signatureBase).digest('hex');
 
-  const returnUrl = process.env.RETURN_URL || 'http://localhost:8080/success.html';
-  const cancelUrl = process.env.CANCEL_URL || 'http://localhost:8080/cancel.html';
-  const notifyUrl = process.env.NOTIFY_URL || `http://localhost:${PORT}/ipn`;
+  const returnUrl = process.env.RETURN_URL || `${BASE_URL}/success.html`;
+  const cancelUrl = process.env.CANCEL_URL || `${BASE_URL}/cancel.html`;
+  const notifyUrl = process.env.NOTIFY_URL || `${BASE_URL}/ipn`;
 
   const html = `<!doctype html><html><body>
     <form id="payfrm" action="${PAYPRO_URL}" method="post">

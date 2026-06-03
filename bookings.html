@@ -1654,7 +1654,7 @@
         function buildPayProForm({ amount, orderId, currency = 'USD' }) {
             const form = document.createElement('form');
             form.method = 'post';
-            form.action = 'http://localhost:3000/create-payment';
+            form.action = '/create-payment';
             form.style.display = 'none';
             form.innerHTML = `
                 <input type="hidden" name="order_id" value="${orderId}" />

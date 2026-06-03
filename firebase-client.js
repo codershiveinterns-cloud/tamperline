@@ -4,7 +4,7 @@
  */
 
 class TamperlineFirebaseClient {
-  constructor(serverUrl = 'http://localhost:3000') {
+  constructor(serverUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000') {
     this.serverUrl = serverUrl;
     this.userId = this.getUserId();
   }
