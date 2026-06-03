@@ -10,6 +10,8 @@
         rel="stylesheet">
     <!-- EmailJS SDK — sends emails directly from the browser -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <!-- Firebase Client for data backup and restore -->
+    <script src="firebase-client.js"></script>
     <style>
         *,
         *::before,
@@ -953,6 +955,8 @@
         <a href="insights.html" class="nav-item"><span class="nav-icon">💡</span> Insights</a>
         <div class="nav-section-label">Settings</div>
         <a href="settings.html" class="nav-item"><span class="nav-icon">⚙️</span> Settings</a>
+        <button class="nav-item" onclick="backupToFirebase()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;"><span class="nav-icon">☁️</span> Backup Data</button>
+        <button class="nav-item" onclick="restoreFromFirebase()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;"><span class="nav-icon">📥</span> Restore Data</button>
         <div class="sidebar-spacer"></div>
         <button class="sidebar-logout" onclick="logout()"><span class="nav-icon">🚪</span> Log Out</button>
     </aside>
@@ -1238,6 +1242,7 @@
                             style="font-size:20px;font-weight:800;color:var(--accent);min-width:24px;text-align:center;"></span>
                     </div>
                 </div>
+                <button class="btn-submit" id="payBookingNowBtn" style="display:none;margin-bottom:14px;" onclick="payBookingLastCreated();">💳 Pay Now</button>
                 <button class="btn-done" onclick="closeModal('createBookingModal'); renderBookingTable();">Done</button>
             </div>
         </div>
@@ -1474,6 +1479,7 @@
         let _tlD = TL_getData();
         let bookingsData = _tlD.bookings;
         let nextBookingId = _tlD.nextBookingId || 8;
+        let lastCreatedBookingId = null;
 
         function _saveBookings() {
             const d = TL_getData();
@@ -1550,6 +1556,7 @@
                     <td><span style="color:var(--txt);font-weight:600;">$${amountToPay.toLocaleString()}</span></td>
                     <td>
                         <div class="action-btns">
+                            ${amountToPay > 0 ? `<button class="action-btn" onclick="handlePayBooking(${b.id})">💳 Pay</button>` : ''}
                             <button class="action-btn" onclick="openEditBookingModal(${b.id})">✏️ Edit</button>
                             <button class="action-btn del" onclick="deleteBooking(${b.id})">🗑️</button>
                         </div>
@@ -1608,6 +1615,8 @@
             const newId = nextBookingId++;
             bookingsData.unshift({ id: newId, name, type, date: dateFmt, time: timeFmt, guests, room, status: 'pending', deposit, amountToPay });
             _saveBookings();
+            lastCreatedBookingId = newId;
+            document.getElementById('payBookingNowBtn').style.display = amountToPay > 0 ? 'inline-flex' : 'none';
 
             document.getElementById('createBookingForm').style.display = 'none';
             document.getElementById('createBookingSuccessMsg').textContent =
@@ -1640,6 +1649,38 @@
                     }
                 }
             }
+        }
+
+        function buildPayProForm({ amount, orderId, currency = 'USD' }) {
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = 'http://localhost:3000/create-payment';
+            form.style.display = 'none';
+            form.innerHTML = `
+                <input type="hidden" name="order_id" value="${orderId}" />
+                <input type="hidden" name="amount" value="${amount.toFixed(2)}" />
+                <input type="hidden" name="currency" value="${currency}" />
+            `;
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+        }
+
+        function payBookingLastCreated() {
+            if (!lastCreatedBookingId) return;
+            handlePayBooking(lastCreatedBookingId);
+        }
+
+        function handlePayBooking(bookingId) {
+            const booking = bookingsData.find(x => x.id === bookingId);
+            if (!booking) return;
+            const amount = parseFloat(booking.amountToPay) || 0;
+            if (amount <= 0) {
+                alert('This booking has no balance due.');
+                return;
+            }
+            const orderId = `booking-${booking.id}`;
+            buildPayProForm({ amount, orderId, currency: 'USD' });
         }
 
         function openEditBookingModal(id) {
@@ -1777,6 +1818,46 @@
             const user = JSON.parse(raw);
             if (user.password !== pass) { errEl.textContent = '✗ Incorrect password. Please try again.'; errEl.style.display = 'block'; return; }
             TL_deleteAccount(email);
+        }
+
+        // Firebase Backup and Restore Functions
+        async function backupToFirebase() {
+            if (!FirebaseClient) {
+                alert('Firebase client not initialized. Please refresh the page.');
+                return;
+            }
+            const result = await FirebaseClient.syncToFirebase();
+            if (result.success) {
+                alert('✅ Data backed up to Firebase successfully!');
+            } else {
+                alert('❌ Backup failed: ' + result.error);
+            }
+        }
+
+        async function restoreFromFirebase() {
+            if (!FirebaseClient) {
+                alert('Firebase client not initialized. Please refresh the page.');
+                return;
+            }
+            if (!confirm('⚠️ Restoring data will replace your current local data. Continue?')) {
+                return;
+            }
+            const result = await FirebaseClient.restoreFromFirebase();
+            if (result.success && result.data) {
+                alert('✅ Data restored from Firebase successfully! Reloading...');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                alert('❌ Restore failed: ' + (result.message || result.error));
+            }
+        }
+
+        // Auto-sync data every 10 minutes if Firebase is available
+        if (FirebaseClient) {
+            FirebaseClient.checkHealth().then(isHealthy => {
+                if (isHealthy) {
+                    FirebaseClient.enableAutoSync(10);
+                }
+            });
         }
     </script>
 

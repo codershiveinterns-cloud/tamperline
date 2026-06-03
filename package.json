@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "static": "http-server . -p 8080"
+  },
   "dependencies": {
     "chart.js": "^4.5.1"
   }
