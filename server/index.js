@@ -1,6 +1,6 @@
 const path = require('path');
 const express = require('express');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const admin = require('firebase-admin');
 const { buildPayProCheckoutUrl } = require('../paypro-checkout');
 
