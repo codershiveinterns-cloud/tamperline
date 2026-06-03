@@ -1,36 +1,39 @@
-PayPro Global integration — quick setup
+PayPro Global integration - quick setup
 
-1) Add your PayPro credentials
+1) Add your PayPro product IDs
 
-- Copy `server/.env.example` -> `server/.env` and fill `MERCHANT_ID` and `PAYPRO_SECRET` (do NOT commit secrets).
+- Copy `server/.env.example` -> `server/.env`.
+- Fill the PayPro product IDs for each plan/billing option:
+  - `PAYPRO_PRODUCT_TAP_MONTHLY`
+  - `PAYPRO_PRODUCT_TAP_ANNUAL`
+  - `PAYPRO_PRODUCT_BARREL_MONTHLY`
+  - `PAYPRO_PRODUCT_BARREL_ANNUAL`
+  - `PAYPRO_PRODUCT_CELLAR_MONTHLY`
+  - `PAYPRO_PRODUCT_CELLAR_ANNUAL`
+- For booking balance payments, fill `PAYPRO_PRODUCT_BOOKING`.
+- Keep `PAYPRO_CHECKOUT_URL=https://store.payproglobal.com/checkout` for live checkout.
 
-2) Start the static site and local helper server
-
-Static site (serves HTML/CSS/JS):
+2) Start the local server
 
 ```
-npm run static
-```
-
-Server (builds signed requests and receives IPN):
-
-```
-cd server
 npm install
 npm start
 ```
 
 3) Test a payment flow
 
-- Open `http://localhost:8080/bookings.html` and create a booking with a positive Amount to be Paid.
-- After the booking is created, click the new **Pay Now** button in the success modal or the **Pay** button in the bookings table.
-- The browser will post to `http://localhost:3000/create-payment`, and the helper server will redirect to the PayPro payment page.
+- Open `http://localhost:3000/dashboard.html`.
+- Choose a plan in the upgrade modal.
+- The browser posts to `/create-payment`, and the server redirects to PayPro Global checkout.
 
 4) Return/cancel pages
 
 - `success.html` and `cancel.html` are included so PayPro can redirect users back after payment completion or cancellation.
+- Configure those redirects in the PayPro Global product/page settings.
 
 5) Production
 
-- Update `PAYPRO_URL` and `NOTIFY_URL` to the live endpoints provided by PayPro Global.
-- Implement proper IPN signature verification in `server/index.js` following PayPro Global docs.
+- Add the same PayPro product ID environment variables in Vercel.
+- The live `/create-payment` path is rewritten to `/api/create-payment` by `vercel.json`.
+- Set the PayPro IPN/webhook URL to `https://your-domain.example/ipn`.
+- Implement proper IPN signature verification before using webhook events to activate accounts automatically.

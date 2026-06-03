@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/create-payment",
+      "destination": "/api/create-payment"
+    },
+    {
+      "source": "/ipn",
+      "destination": "/api/ipn"
+    }
+  ]
+}

@@ -1,8 +1,8 @@
 const path = require('path');
 const express = require('express');
-const crypto = require('crypto');
 require('dotenv').config();
 const admin = require('firebase-admin');
+const { buildPayProCheckoutUrl } = require('../paypro-checkout');
 
 // Initialize Firebase Admin SDK
 let serviceAccount;
@@ -27,10 +27,6 @@ const staticRoot = path.join(__dirname, '..');
 app.use(express.static(staticRoot));
 
 const PORT = process.env.PORT || 3000;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
-const PAYPRO_URL = process.env.PAYPRO_URL || 'https://secure.payproglobal.com/process/';
-const MERCHANT_ID = process.env.MERCHANT_ID || 'YOUR_MERCHANT_ID';
-const SECRET = process.env.PAYPRO_SECRET || 'YOUR_SECRET';
 
 // Firebase Data Sync & Restore Endpoints
 app.post('/sync-data', async (req, res) => {
@@ -119,32 +115,20 @@ app.post('/ipn', (req, res) => {
 });
 
 app.post('/create-payment', (req, res) => {
-  const { amount = '0.00', order_id = `order-${Date.now()}`, currency = 'USD' } = req.body;
-  const merchant_id = MERCHANT_ID;
+  try {
+    const redirectUrl = buildPayProCheckoutUrl({
+      amount: req.body.amount,
+      billing: req.body.billing,
+      currency: req.body.currency || 'USD',
+      orderId: req.body.order_id || `order-${Date.now()}`,
+      plan: req.body.plan
+    });
 
-  // NOTE: Adjust the signature algorithm to match PayPro Global requirements.
-  const signatureBase = `${merchant_id}|${order_id}|${amount}|${currency}`;
-  const signature = crypto.createHmac('sha256', SECRET).update(signatureBase).digest('hex');
-
-  const returnUrl = process.env.RETURN_URL || `${BASE_URL}/success.html`;
-  const cancelUrl = process.env.CANCEL_URL || `${BASE_URL}/cancel.html`;
-  const notifyUrl = process.env.NOTIFY_URL || `${BASE_URL}/ipn`;
-
-  const html = `<!doctype html><html><body>
-    <form id="payfrm" action="${PAYPRO_URL}" method="post">
-      <input type="hidden" name="merchant_id" value="${merchant_id}" />
-      <input type="hidden" name="amount" value="${amount}" />
-      <input type="hidden" name="currency" value="${currency}" />
-      <input type="hidden" name="order_id" value="${order_id}" />
-      <input type="hidden" name="return_url" value="${returnUrl}" />
-      <input type="hidden" name="cancel_url" value="${cancelUrl}" />
-      <input type="hidden" name="notify_url" value="${notifyUrl}" />
-      <input type="hidden" name="signature" value="${signature}" />
-    </form>
-    <script>document.getElementById('payfrm').submit();</script>
-  </body></html>`;
-
-  res.send(html);
+    res.redirect(303, redirectUrl);
+  } catch (error) {
+    console.error('[create-payment]', error);
+    res.status(500).send(`Payment is not configured: ${error.message}`);
+  }
 });
 
 app.get('/success', (req, res) => res.send('Payment successful.'));
