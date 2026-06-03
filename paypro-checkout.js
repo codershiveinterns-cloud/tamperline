@@ -6,9 +6,15 @@ const PLAN_PRICES = {
   cellar: { monthly: 699, annual: 6710 }
 };
 
+const DEFAULT_PLAN_PRODUCT_IDS = {
+  tap: { monthly: '129024', annual: '129235' },
+  barrel: { monthly: '129201', annual: '129238' },
+  cellar: { monthly: '129203', annual: '129241' }
+};
+
 function getPlanProductId(plan, billing) {
   const key = `PAYPRO_PRODUCT_${String(plan).toUpperCase()}_${String(billing).toUpperCase()}`;
-  return process.env[key] || process.env.PAYPRO_PRODUCT_ID;
+  return process.env[key] || DEFAULT_PLAN_PRODUCT_IDS[plan]?.[billing] || process.env.PAYPRO_PRODUCT_ID;
 }
 
 function getBookingProductId() {
